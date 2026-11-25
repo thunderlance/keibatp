@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G1 HORSE BATTLE 1600</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#101827;color:#f4f7fb;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",sans-serif;padding:22px 16px}
+main{max-width:620px;margin:auto}.tag{color:#75d5ee;letter-spacing:.16em;font-size:12px;font-weight:700}h1{font-size:27px;line-height:1.2;margin:8px 0 4px}.sub{color:#aebbd0;font-size:13px;margin-bottom:22px}
+.panel{background:#1a2639;border:1px solid #30415b;border-radius:16px;padding:16px;margin:14px 0}
+label{display:block;color:#cbd6e6;font-size:13px;margin-bottom:8px}select,input{width:100%;padding:14px;border-radius:10px;border:1px solid #52627a;background:#0f1929;color:white;font-size:16px}
+button{border:0;border-radius:10px;padding:13px 15px;font-size:15px;font-weight:700;background:#62cce7;color:#071521;cursor:pointer}button.secondary{background:#34445c;color:#fff}button:disabled{opacity:.4}
+.actions{display:flex;gap:8px;margin-top:10px}.actions button{flex:1}.stats{display:flex;justify-content:space-between;color:#b8c7da;font-size:13px}.stats strong{color:white;font-size:20px}
+#message{min-height:26px;color:#83d9ee;font-weight:700;margin-top:12px}.history{padding-left:20px;color:#d6e0ed;font-size:14px;line-height:1.8}.note{font-size:12px;color:#9eacc0;line-height:1.6}
+</style>
+</head>
+<body><main>
+<div class="tag">JRA TURF G1 / 1600m</div>
+<h1>G1 HORSE BATTLE 1600</h1>
+<div class="sub">レース名と優勝馬名を答えて、AIと対戦しよう。</div>
+<div class="panel">
+ <div class="stats"><span>あなた <strong id="you">0</strong></span><span>AI <strong id="ai">0</strong></span></div>
+</div>
+<div class="panel">
+ <label for="race">レース名</label>
+ <select id="race">
+  <option>安田記念</option><option>マイルチャンピオンシップ</option><option>NHKマイルカップ</option><option>桜花賞</option><option>ヴィクトリアマイル</option><option>朝日杯フューチュリティステークス</option><option>阪神ジュベナイルフィリーズ</option>
+ </select>
+ <div style="height:14px"></div>
+ <label for="horse">優勝馬名</label>
+ <input id="horse" placeholder="例：オグリキャップ" autocomplete="off">
+ <div class="actions"><button id="send">回答する</button><button class="secondary" id="voice">音声入力</button></div>
+ <div id="message" role="status"></div>
+</div>
+<div class="panel">
+ <button class="secondary" id="toggle" style="width:100%">対戦履歴を表示</button>
+ <ol class="history" id="history" hidden></ol>
+ <div class="actions"><button class="secondary" id="reset">ゲームをリセット</button></div>
+</div>
+<p class="note">試作版です。収録データは動作確認用の一部のみで、全年度の公式記録を網羅していません。未収録の馬名は正誤判定せず、データ追加が必要と表示します。重複した馬名を使うと負けになります。</p>
+</main>
+<script>
+const records={
+"安田記念":["オグリキャップ","タイキシャトル","アグネスデジタル","ウオッカ","ロードカナロア","ジャスタウェイ","モーリス","ロゴタイプ","グランアレグリア"],
+"マイルチャンピオンシップ":["ニホンピロウイナー","ノースフライト","タイキシャトル","デュランダル","ダイワメジャー","カンパニー","モーリス","ミッキーアイル","インディチャンプ"],
+"NHKマイルカップ":["タイキフォーチュン","シーキングザパール","エルコンドルパサー","クロフネ","キングカメハメハ","ディープスカイ","ジョーカプチーノ","ミッキーアイル","アドマイヤマーズ"],
+"桜花賞":["ハギノトップレディ","シャダイカグラ","ベガ","ファレノプシス","テイエムオーシャン","ダイワスカーレット","ブエナビスタ","アパパネ","ジェンティルドンナ"],
+"ヴィクトリアマイル":["ダンスインザムード","ウオッカ","ブエナビスタ","アパパネ","ヴィルシーナ","ストレイトガール","アーモンドアイ","グランアレグリア"],
+"朝日杯フューチュリティステークス":["ミホノブルボン","ナリタブライアン","グラスワンダー","アドマイヤドン","フサイチリシャール","ドリームジャーニー","ローズキングダム","ダノンプラチナ","サリオス"],
+"阪神ジュベナイルフィリーズ":["メジロドーベル","スティンガー","テイエムオーシャン","タムロチェリー","ウオッカ","ブエナビスタ","レーヴディソール","ソウルスターリング","リバティアイランド"]
+};
+let used=[],you=0,ai=0,turn=0;
+const $=id=>document.getElementById(id);
+function say(t){$("message").textContent=t}
+function render(){ $("you").textContent=you;$("ai").textContent=ai;$("history").innerHTML=used.map(x=>`<li>${x.race} — ${x.horse}（${x.by}）</li>`).join("");}
+function submit(){let race=$("race").value,horse=$("horse").value.trim();if(!horse){say("優勝馬名を入力してください。");return}
+if(used.some(x=>x.horse.toLowerCase()===horse.toLowerCase())){say("その馬名は既に使用されています。あなたの負けです。");$("send").disabled=true;return}
+if(!records[race].includes(horse)){say("この試作版のデータには未登録です。正誤判定はできません。");return}
+used.push({race,horse,by:"あなた"});you++;$("horse").value="";
+let options=records[race].filter(h=>!used.some(x=>x.horse===h));
+if(options.length){let pick=options[(turn++)%options.length];used.push({race,horse:pick,by:"AI"});ai++;say("AIの回答："+pick)}
+else say("このレースの試作データからはAIの回答候補がありません。");
+render();}
+$("send").addEventListener("click",submit);$("horse").addEventListener("keydown",e=>{if(e.key==="Enter")submit()});
+$("toggle").onclick=()=>{$("history").hidden=!$("history").hidden;$("toggle").textContent=$("history").hidden?"対戦履歴を表示":"対戦履歴を隠す"};
+$("reset").onclick=()=>{used=[];you=0;ai=0;turn=0;$("send").disabled=false;$("horse").value="";say("ゲームをリセットしました。");render()};
+$("voice").onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){say("このブラウザでは音声入力に未対応です。キーボードのマイクをご利用ください。");return}const r=new SR();r.lang="ja-JP";r.onresult=e=>$("horse").value=e.results[0][0].transcript;r.onerror=()=>say("音声を認識できませんでした。");r.start();say("音声を聞き取っています…")};
+</script></body></html>
